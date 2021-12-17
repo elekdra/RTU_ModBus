@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="WindowsConfiguratorModbusLibrary.CloneableList&lt;T&gt;" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABA=</HashCode>
+      <FileName>CloneableList.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="WindowsConfiguratorModbusLibrary.ErrorCodes" Collapsed="true">
+    <Position X="2.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAA=</HashCode>
+      <FileName>ErrorCodes.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WindowsConfiguratorModbusLibrary.ErrorValue" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAgAAAAAAAAAAAAAEAAAAAAAAAAAAAAABA=</HashCode>
+      <FileName>ErrorValue.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="WindowsConfiguratorModbusLibrary.Modbus" Collapsed="true">
+    <Position X="0.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>KAAAAAAAAAAAIAgAAAASAACAAAAEAAAAAAAAgACAAIw=</HashCode>
+      <FileName>Modbus.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WindowsConfiguratorModbusLibrary.ModbusExecutor" Collapsed="true">
+    <Position X="2.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IEAAAAACAQAAAIABUgVgAAQkAAACAQBAAACmoBAAAQE=</HashCode>
+      <FileName>ModbusExecutor.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WindowsConfiguratorModbusLibrary.Param" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QEAAAAAAACAQEgAIgEAABAAAAIAAAAACCAAAgACAABA=</HashCode>
+      <FileName>Param.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="WindowsConfiguratorModbusLibrary.VI_Device" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgAAAAAAgAAAAAAAACAAAAAAAAAAAAAAAAAIAAAAABA=</HashCode>
+      <FileName>VI_Device.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Enum Name="WindowsConfiguratorModbusLibrary.ByteOrder" Collapsed="true">
+    <Position X="0.5" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>ByteOrder.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="WindowsConfiguratorModbusLibrary.DataType" Collapsed="true">
+    <Position X="2.25" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAIAAAAAAAAAAiAAAAAhECAAAAEAgAAAAAAAABAAA=</HashCode>
+      <FileName>DataType.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="WindowsConfiguratorModbusLibrary.ErrorCodeEnum" Collapsed="true">
+    <Position X="4" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAABAAAghAAQAAAwAGAIAAAAhBA=</HashCode>
+      <FileName>ErrorCodeEnum.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="WindowsConfiguratorModbusLibrary.ParamIDDefs" Collapsed="true">
+    <Position X="0.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>m1GZwzxdeJjkskCnjjny/3dCAeGgrJTKdv9G2jJl4P8=</HashCode>
+      <FileName>ParamIDDefs.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

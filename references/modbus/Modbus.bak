@@ -1,0 +1,625 @@
+// -----------------------------------------------------------------------
+// <copyright file="Modbus.cs" company="Ametek">
+// Copyright (c) 2012 Ametek. All Rights Reserved.
+// </copyright>
+// -----------------------------------------------------------------------
+
+namespace WDGModbusLibrary
+{
+    using System;
+    using System.Collections.Generic;
+    using System.IO.Ports;
+    using System.Text;
+
+    /// <summary>
+    /// modbus class definition
+    /// </summary>
+    public class Modbus
+    {
+        #region Constructor / Deconstructor
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Modbus" /> class.
+        /// </summary>
+        public Modbus()
+        {
+            // Set COM port read timeout to 500 milliseconds
+            this.sp.ReadTimeout = 500;
+
+            // Set COM port write timeout to 500 milliseconds
+            this.sp.WriteTimeout = 500;
+        }
+        #endregion
+
+        #region Open / Close Procedures
+
+        /// <summary>
+        /// Checks the status of COM port
+        /// </summary>
+        /// <returns>true = Open, false = Close</returns>
+        public bool IsOpen()
+        {
+            return this.sp.IsOpen;
+        }
+
+        /// <summary>
+        /// Opens the COM Port with supplied parameters
+        /// </summary>
+        /// <param name="portName"> COM Port name </param>
+        /// <param name="baudRate"> COM Port baud rate </param>
+        /// <param name="databits"> COM Port data bits </param>
+        /// <param name="parity"> COM Port parity </param>
+        /// <param name="stopBits"> COM Port stop bits </param>
+        /// <returns>true = Open success, false = Open failed</returns>
+        public bool Open(string portName, int baudRate, int databits, Parity parity, StopBits stopBits)
+        {
+            // Ensure port isn't already opened:
+            if (false == this.sp.IsOpen)
+            {
+                // Assign desired settings to the serial port:
+                this.sp.PortName = portName;
+                this.sp.BaudRate = baudRate;
+                this.sp.DataBits = databits;
+                this.sp.Parity = parity;
+                this.sp.StopBits = stopBits;
+                
+                // These timeouts are default and cannot be 
+                // editted through the class at this point:
+                this.sp.ReadTimeout = 1000;
+                this.sp.WriteTimeout = 1000;
+
+                try
+                {
+                    this.sp.Open();
+                }
+                catch (Exception err)
+                {
+                    this.ModbusStatus = "Error opening " + portName + ": " + err.Message;
+                    return false;
+                }
+
+                this.ModbusStatus = portName + " opened successfully";
+                return true;
+            }
+            else
+            {
+                this.ModbusStatus = portName + " already opened";
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Closes the COM Port
+        /// </summary>
+        /// <returns>true = Close successful, flase = Close failed</returns>
+        public bool Close()
+        {
+            // Ensure port is opened before attempting to close:
+            if (this.sp.IsOpen)
+            {
+                try
+                {
+                    this.sp.Close();
+                }
+                catch (Exception err)
+                {
+                    this.ModbusStatus = "Error closing " + this.sp.PortName + ": " + err.Message;
+                    return false;
+                }
+
+                this.ModbusStatus = this.sp.PortName + " closed successfully";
+                return true;
+            }
+            else
+            {
+                this.ModbusStatus = this.sp.PortName + " is not open";
+                return false;
+            }
+        }
+        #endregion
+
+        #region Create Payload Methods
+        /// <summary>
+        /// CreatePayloadFunction16:
+        /// Creates payload in modbus format using the 
+        /// input parameters. 
+        /// Format of payload:
+        /// -----------------------------------------------
+        /// | Device_address | Function_code | Data | CRC |
+        /// -----------------------------------------------
+        /// </summary>
+        /// <param name="dev_addr"> device address </param>
+        /// <param name="modbus_reg_addr"> start register address </param>
+        /// <param name="num_regs"> number of registers to write </param>
+        /// <param name="values"> values of registers </param>
+        /// <returns>true= msg sent successfully, false = timeout error</returns>
+        public bool CreatePayloadFunction16(
+            int dev_addr,
+            int modbus_reg_addr,
+            int num_regs,
+            short[] values)
+        {
+            // Ensure port is open:
+            if (true == this.sp.IsOpen)
+            {
+                // Clear in/out buffers:
+                this.sp.DiscardOutBuffer();
+                this.sp.DiscardInBuffer();
+
+                // Message is 1 addr + 1 fcn + 2 start + 2 reg + 1 count + 2 * reg vals + 2 CRC
+                byte[] message = new byte[9 + (2 * num_regs)];
+
+                // Function 16 response is fixed at 8 bytes
+                byte[] response = new byte[8];
+
+                // Array to receive CRC bytes:
+                byte[] crc = new byte[2];
+
+                // Device_address
+                message[0] = (byte)dev_addr;
+
+                // Function_code = 16
+                message[1] = (byte)16;
+
+                // Data
+                // Data[0]: starting address HI
+                message[2] = (byte)(modbus_reg_addr >> 8);
+
+                // Data[1]: starting address LO
+                message[3] = (byte)modbus_reg_addr;
+
+                // Data[2]: quantity of registers HI
+                message[4] = (byte)(num_regs >> 8);
+
+                // Data[3]: quantity of registers LO
+                message[5] = (byte)num_regs;
+
+                // Data[4]: bytecount 
+                message[6] = (byte)(num_regs * 2);
+
+                // Put write values into message prior to sending:
+                for (int i = 0; i < num_regs; i++)
+                {
+                    message[7 + (2 * i)] = (byte)(values[i] >> 8);
+                    message[8 + (2 * i)] = (byte)values[i];
+                }
+
+                this.GetCRC(message, ref crc);
+                message[message.Length - 2] = crc[0];
+                message[message.Length - 1] = crc[1];
+
+                // Send Modbus message to Serial Port:
+                try
+                {
+                    this.sp.Write(message, 0, message.Length);
+                    this.GetResponse(ref response);
+                    if (false == this.GetResponse(ref response))
+                    {
+                        // Create new exception.
+                        var ex = new TimeoutException("Serial Port Read Event Timed out");
+                        throw ex;
+                    }
+                }
+                catch (Exception err)
+                {
+                    this.ModbusStatus = "Error in write event: " + err.Message;
+                    return false;
+                }
+
+                // Evaluate message:
+                if (true == this.CheckResponse(response))
+                {
+                    this.ModbusStatus = "Write successful";
+                    return true;
+                }
+                else
+                {
+                    this.ModbusStatus = "CRC error";
+                    return false;
+                }
+            }
+            else
+            {
+                this.ModbusStatus = "Serial port not open";
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// CreatePayloadFunction03:
+        /// Creates payload in modbus format using the 
+        /// input parameters. 
+        /// Format of payload:
+        /// -----------------------------------------------
+        /// | Device_address | Function_code | Data | CRC |
+        /// -----------------------------------------------
+        /// </summary>
+        /// <param name="dev_addr"> device address </param>
+        /// <param name="modbus_reg_addr"> start register address </param>
+        /// <param name="num_regs"> number of registers to write </param>
+        /// <param name="values"> values of registers </param>
+        /// <returns>true= msg sent successfully, false = timeout error</returns>
+        public Boolean CreatePayloadFunction03(
+            int dev_addr,
+            int modbus_reg_addr,
+            int num_regs,
+            ref short[] values)
+        {
+            // Ensure port is open:
+            if (true == this.sp.IsOpen)
+            {
+                // Clear in/out buffers:
+                this.sp.DiscardOutBuffer();
+                this.sp.DiscardInBuffer();
+
+                // Function 3 request is always 8 bytes:
+                byte[] message = new byte[8];
+
+                // Function 3 response buffer:
+                byte[] response = new byte[5 + (2 * num_regs)];
+                
+                // Build outgoing modbus message:
+                this.BuildMessage((byte)dev_addr, (byte)3, (ushort)modbus_reg_addr, (ushort)num_regs, ref message);
+
+                // Send modbus message to Serial Port:
+                try
+                {
+                    this.sp.Write(message, 0, message.Length);
+                    this.GetResponse(ref response);
+                    if (false == this.GetResponse(ref response))
+                    {
+                        // Create new exception.
+                        var ex = new TimeoutException("Serial Port Read Event Timed out");
+                        throw ex;
+                    }
+                }
+                catch (Exception err)
+                {
+                    this.ModbusStatus = "Error in read event: " + err.Message;
+                    return false;
+                }
+
+                // Evaluate message:
+                if (true == this.CheckResponse(response))
+                {
+                    // Return requested register values:
+                    for (int i = 0; i < (response.Length - 5) / 2; i++)
+                    {
+                        values[i] = response[(2 * i) + 3];
+                        values[i] <<= 8;
+                        values[i] += response[(2 * i) + 4];
+                    }
+
+                    this.ModbusStatus = "Read successful";
+                    return true;
+                }
+                else
+                {
+                    this.ModbusStatus = "CRC error";
+                    return false;
+                }
+            }
+            else
+            {
+                this.ModbusStatus = "Serial port not open";
+                return false;
+            }
+        }
+        #endregion
+
+        #region Function 16 - Write Multiple Registers
+        /// <summary>
+        /// Write Multiple modbus registers
+        /// </summary>
+        /// <param name="address">modbus address of sensor</param>
+        /// <param name="start">start address of register </param>
+        /// <param name="registers">number of registers</param>
+        /// <param name="values">byte array containinig values to write</param>
+        /// <returns>true = success, false = timeout error</returns>
+        public bool WriteMultipleRegisters(byte address, ushort start, ushort registers, short[] values)
+        {
+            bool status = this.SendFc16(address, start, registers, values);
+            return status;
+        }
+        #endregion
+
+        #region Function 3 - Read Registers
+        /// <summary>
+        /// Read Multiple modbus registers
+        /// </summary>
+        /// <param name="address">modbus address of sensor</param>
+        /// <param name="start">start address of register </param>
+        /// <param name="registers"> number of registers</param>
+        /// <param name="values">byte array to store the result</param>
+        /// <returns>true = success, false = timeout error</returns>
+        public bool ReadMultipleRegisters(byte address, ushort start, ushort registers, ref short[] values)
+        {
+            bool status = this.SendFc3(address, start, registers, ref values);
+            return status;
+        }
+        #endregion
+    
+        #region Modbus Crude Functions
+        /// <summary>
+        /// Builds and sends a function 16 modbus msg
+        /// </summary>
+        /// <param name="address">modbus address of sensor</param>
+        /// <param name="start">start address of register </param>
+        /// <param name="registers"> number of registers</param>
+        /// <param name="values">byte array to store the result</param>
+        /// <returns>true = success, false = timeout error</returns>
+        private bool SendFc16(byte address, ushort start, ushort registers, short[] values)
+        {
+            // Ensure port is open:
+            if (true == this.sp.IsOpen)
+            {
+                // Clear in/out buffers:
+                this.sp.DiscardOutBuffer();
+                this.sp.DiscardInBuffer();
+
+                // Message is 1 addr + 1 fcn + 2 start + 2 reg + 1 count + 2 * reg vals + 2 CRC
+                byte[] message = new byte[9 + (2 * registers)];
+
+                // Function 16 response is fixed at 8 bytes
+                byte[] response = new byte[8];
+
+                // Add bytecount to message:
+                message[6] = (byte)(registers * 2);
+
+                // Put write values into message prior to sending:
+                for (int i = 0; i < registers; i++)
+                {
+                    message[7 + (2 * i)] = (byte)(values[i] >> 8);
+                    message[8 + (2 * i)] = (byte)values[i];
+                }
+
+                // Build outgoing message:
+                this.BuildMessage(address, (byte)16, start, registers, ref message);
+                
+                // Send Modbus message to Serial Port:
+                try
+                {
+                    this.sp.Write(message, 0, message.Length);
+                    this.GetResponse(ref response);
+                    if (false == this.GetResponse(ref response))
+                    {
+                        // Create new exception.
+                        var ex = new TimeoutException("Serial Port Read Event Timed out");
+                        throw ex;
+                    }
+                }
+                catch (Exception err)
+                {
+                    this.ModbusStatus = "Error in write event: " + err.Message;
+                    return false;
+                }
+
+                // Evaluate message:
+                if (true == this.CheckResponse(response))
+                {
+                    this.ModbusStatus = "Write successful";
+                    return true;
+                }
+                else
+                {
+                    this.ModbusStatus = "CRC error";
+                    return false;
+                }
+            }
+            else
+            {
+                this.ModbusStatus = "Serial port not open";
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Builds and sends a function 03 modbus msg
+        /// </summary>
+        /// <param name="address">modbus address of sensor</param>
+        /// <param name="start">start address of register </param>
+        /// <param name="registers"> number of registers</param>
+        /// <param name="values">byte array to store the result</param>
+        /// <returns>true = success, false = timeout error</returns>
+        private bool SendFc3(byte address, ushort start, ushort registers, ref short[] values)
+        {
+            // Ensure port is open:
+            if (true == this.sp.IsOpen)
+            {
+                // Clear in/out buffers:
+                this.sp.DiscardOutBuffer();
+                this.sp.DiscardInBuffer();
+
+                // Function 3 request is always 8 bytes:
+                byte[] message = new byte[8];
+
+                // Function 3 response buffer:
+                byte[] response = new byte[5 + (2 * registers)];
+
+                // Build outgoing modbus message:
+                this.BuildMessage(address, (byte)3, start, registers, ref message);
+
+                // Send modbus message to Serial Port:
+                try
+                {
+                    this.sp.Write(message, 0, message.Length);
+                    this.GetResponse(ref response);
+                    if (false == this.GetResponse(ref response))
+                    {
+                        // Create new exception.
+                        var ex = new TimeoutException("Serial Port Read Event Timed out");
+                        throw ex;
+                    }
+                }
+                catch (Exception err)
+                {
+                    this.ModbusStatus = "Error in read event: " + err.Message;
+                    return false;
+                }
+
+                // Evaluate message:
+                if (true == this.CheckResponse(response))
+                {
+                    // Return requested register values:
+                    for (int i = 0; i < (response.Length - 5) / 2; i++)
+                    {
+                        values[i] = response[(2 * i) + 3];
+                        values[i] <<= 8;
+                        values[i] += response[(2 * i) + 4];
+                    }
+
+                    this.ModbusStatus = "Read successful";
+                    return true;
+                }
+                else
+                {
+                    this.ModbusStatus = "CRC error";
+                    return false;
+                }
+            }
+            else
+            {
+                this.ModbusStatus = "Serial port not open";
+                return false;
+            }
+        }
+        #endregion
+   
+        #region CRC Computation
+        /// <summary>
+        /// Calculates the Modbus packet CRC
+        /// </summary>
+        /// <param name="message"> message as byte array </param>
+        /// <param name="outCRC"> returns CRC as byte array </param>
+        private void GetCRC(byte[] message, ref byte[] outCRC)
+        {
+            // Function expects a modbus message of any length as well as a 2 byte CRC array in which to 
+            // return the CRC values:
+            ushort crcFull = 0xFFFF;
+            
+            // store the high byte of crc
+            byte crcHigh = 0xFF, 
+            
+            // stores the low byte of crc
+            crcLow = 0xFF;
+            
+            // stores low byte of crc
+            char crcLSB;
+
+            for (int i = 0; i < (message.Length - 2); i++)
+            {
+                crcFull = (ushort)(crcFull ^ message[i]);
+
+                for (int j = 0; j < 8; j++)
+                {
+                    crcLSB = (char)(crcFull & 0x0001);
+                    crcFull = (ushort)((crcFull >> 1) & 0x7FFF);
+
+                    if (crcLSB == 1)
+                    {
+                        crcFull = (ushort)(crcFull ^ 0xA001);
+                    }
+                }
+            }
+
+            outCRC[1] = crcHigh = (byte)((crcFull >> 8) & 0xFF);
+            outCRC[0] = crcLow = (byte)(crcFull & 0xFF);
+        }
+        #endregion
+
+        #region Build Message
+        /// <summary>
+        /// Builds the standard modbus packer using supplied parameters
+        /// </summary>
+        /// <param name="address">modbus address of the device </param>
+        /// <param name="type"> function type </param>
+        /// <param name="start"> start register address </param>
+        /// <param name="registers"> number of registers </param>
+        /// <param name="message"> message array containing the modbus msg data </param>
+        private void BuildMessage(byte address, byte type, ushort start, ushort registers, ref byte[] message)
+        {
+            // Array to receive CRC bytes:
+            byte[] crc = new byte[2];
+
+            message[0] = address;
+            message[1] = type;
+            message[2] = (byte)(start >> 8);
+            message[3] = (byte)start;
+            message[4] = (byte)(registers >> 8);
+            message[5] = (byte)registers;
+
+            this.GetCRC(message, ref crc);
+            message[message.Length - 2] = crc[0];
+            message[message.Length - 1] = crc[1];
+        }
+        #endregion
+
+        #region Check Response
+        /// <summary>
+        /// Gets and verifies the CRC in the response
+        /// packet
+        /// </summary>
+        /// <param name="response"> modbus repsonse as byte array </param>
+        /// <returns>true= Checksum OK, false= checksum error</returns>
+        private bool CheckResponse(byte[] response)
+        {
+            // Perform a basic CRC check:
+            byte[] crc = new byte[2];
+            this.GetCRC(response, ref crc);
+            if (crc[0] == response[response.Length - 2] && crc[1] == response[response.Length - 1])
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        #endregion
+
+        #region Get Response
+        /// <summary>
+        /// This function reads bytes available on
+        /// serial port. 
+        /// If at any point in time there
+        /// is an timeout exception i.e.
+        /// there was no msg received for
+        /// more than 500ms. then it returns
+        /// false. The calling function should consider this 
+        /// as a failure and take appropriate actions
+        /// </summary>
+        /// <param name="response"> response byte array to be filled </param>
+        /// <returns>true = response received, false = timeout error during getting response packet </returns>
+        private Boolean GetResponse(ref byte[] response)
+        {
+            // There is a bug in .Net 2.0 DataReceived Event that prevents people from using this
+            // event as an interrupt to handle data (it doesn't fire all of the time).  Therefore
+            // we have to use the ReadByte command for a fixed length as it's been shown to be reliable.
+            for (int i = 0; i < response.Length; i++)
+            {
+                try
+                {
+                    response[i] = (byte)this.sp.ReadByte();
+                }
+                catch (TimeoutException)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        #endregion
+
+        #region Member Variables
+        /// <summary>
+        /// Gets or sets the serial port handle
+        /// </summary>
+        private SerialPort sp = new SerialPort();
+
+        /// <summary>
+        /// Gets or sets modbus operation status
+        /// </summary>
+        public string ModbusStatus { get; set; }
+        #endregion
+    }
+}
