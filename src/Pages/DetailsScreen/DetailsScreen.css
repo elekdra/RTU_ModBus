@@ -1,0 +1,7 @@
+.details-screen {
+  background-color: #082334;
+  display: grid;
+  grid-template-rows: 5rem 3rem auto;
+  grid-template-columns: auto;
+  padding: 24px;
+}

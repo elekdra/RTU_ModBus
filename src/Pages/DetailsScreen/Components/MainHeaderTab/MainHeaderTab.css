@@ -1,0 +1,7 @@
+.main-header {
+  background-color: #082334;
+  display: grid;
+  grid-template-rows: auto;
+  grid-template-columns: 75% 25%;
+  /* height: 7.1em; */
+}

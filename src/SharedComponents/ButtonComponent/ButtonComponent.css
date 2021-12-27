@@ -1,0 +1,15 @@
+.button-cls {
+  margin: 5em;
+}
+.save {
+  margin: 2rem;
+  height: 2em;
+  width: 8rem;
+  border-radius: 0.5em;
+}
+.reset {
+  height: 2em;
+  width: 8rem;
+  border-radius: 0.5em;
+  margin: 2rem;
+}

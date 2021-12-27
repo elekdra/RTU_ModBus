@@ -1,0 +1,14 @@
+.alarm {
+  width: 12em;
+  display: grid;
+  grid-template-rows: auto;
+  grid-template-columns: 2em auto;
+  padding: 1em;
+  color: white;
+  background-color: #ff0000;
+  margin-left: 52%;
+  margin-bottom: 4%;
+}
+.alarm-status {
+  padding: 0em;
+}
